@@ -1,0 +1,118 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.js"></script>
+  </head>
+    <meta charset="utf-8">
+    <!-- update the version number as needed -->
+    <script defer src="/__/firebase/4.5.0/firebase-app.js"></script>
+    <!-- include only the Firebase features as you need -->
+    <script defer src="/__/firebase/4.5.0/firebase-auth.js"></script>
+    <script defer src="/__/firebase/4.5.0/firebase-database.js"></script>
+    <script defer src="/__/firebase/4.5.0/firebase-messaging.js"></script>
+    <script defer src="/__/firebase/4.5.0/firebase-storage.js"></script>
+    <!-- initialize the SDK after all desired features are loaded -->
+    <script defer src="/__/firebase/init.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/4.5.0/firebase.js"></script>
+    <script>
+      // Initialize Firebase
+      var config = {
+        apiKey: "AIzaSyC5IUP9uA83jWcCqY1xQgXRouRtqfbRbaY",
+        authDomain: "sound-city-motion.firebaseapp.com",
+        databaseURL: "https://sound-city-motion.firebaseio.com",
+        projectId: "sound-city-motion",
+        storageBucket: "sound-city-motion.appspot.com",
+        messagingSenderId: "610023113895"
+      };
+      firebase.initializeApp(config);
+    </script>
+
+  <body>
+<canvas id="myChart" width="400" height="100"></canvas>
+<script>
+
+var ctx = document.getElementById("myChart").getContext('2d');
+var myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Occupied',
+            data: [],
+            backgroundColor: [
+                'rgba(255, 255, 255, 0.2)'
+            ],
+            borderColor: [
+                'rgba(0,50,100,1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        scales: {
+            yAxes: [{
+                ticks: {
+                    beginAtZero:true
+                }
+            }]
+        }
+    }
+});
+
+var db = firebase.database();
+var occupy = db.ref('occupancy_0');
+var occupied = occupy.limitToLast(20);
+
+occupied.once("value", function(data){
+    var motionArray = [];
+    var earliestTime = 0;
+    var latestTime = 0;
+    var lastMotion = 0;
+
+    data.forEach(function(d){
+      motionArray.unshift(d.val());
+    });
+
+    var arraySize = motionArray.length;
+    var currentIndex = 0;
+    var curTS = 0;
+    var lastTS = 0;
+
+    for(var i = arraySize - 1; i >= 0; --i) {
+      var row = JSON.parse(motionArray[i]);
+      var curTS = row.ts;
+
+      if (lastTS == 0) {
+        myChart.data.labels[currentIndex] = new Date(row.ts * 1000).toLocaleString() + "  " + currentIndex;
+        myChart.data.datasets[0].data[currentIndex] = row.motion;
+        ++currentIndex;
+      }
+      else {
+        var idleCount = 0;
+        for (var j = 0; j < curTS - lastTS;) {
+          myChart.data.labels[currentIndex] = new Date((lastTS + j) * 1000).toLocaleString() + "  " + currentIndex;
+          myChart.data.datasets[0].data[currentIndex] = lastMotion;
+          ++currentIndex;
+          ++idleCount;
+          if (j < 10)
+            ++j;
+          else if (j < 300)
+            j += 10;
+          else if (j < 5000)
+            j += 60;
+          else if (j < 20000)
+            j += 1800;
+          else
+            j += 3600;
+        }
+      }
+
+      lastTS = curTS;
+      lastMotion = row.motion;
+    };
+    myChart.update();
+});
+
+</script>
+</body>
+</html>

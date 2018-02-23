@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <!-- update the version number as needed -->
+    <script defer src="/__/firebase/4.5.0/firebase-app.js"></script>
+    <!-- include only the Firebase features as you need -->
+    <script defer src="/__/firebase/4.5.0/firebase-auth.js"></script>
+    <script defer src="/__/firebase/4.5.0/firebase-database.js"></script>
+    <script defer src="/__/firebase/4.5.0/firebase-messaging.js"></script>
+    <script defer src="/__/firebase/4.5.0/firebase-storage.js"></script>
+    <!-- initialize the SDK after all desired features are loaded -->
+    <script defer src="/__/firebase/init.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/4.5.0/firebase.js"></script>
+    <script>
+      // Initialize Firebase
+      var config = {
+        apiKey: "AIzaSyC5IUP9uA83jWcCqY1xQgXRouRtqfbRbaY",
+        authDomain: "sound-city-motion.firebaseapp.com",
+        databaseURL: "https://sound-city-motion.firebaseio.com",
+        projectId: "sound-city-motion",
+        storageBucket: "sound-city-motion.appspot.com",
+        messagingSenderId: "610023113895"
+      };
+      firebase.initializeApp(config);
+    </script>
+    <title>Music City Status</title>
+  </head>
+  <body onload="clearTimers()">
+    <img id="displayImage" src="./images/OnAirOff.jpg">
+    <hr>
+    <div name="fullText" id="fullText">&nbsp;</div>
+
+    <script>
+
+      var MOTION_ERROR   = -1;
+      var MOTION_NONE    = 0;
+      var MOTION_RECENT  = 1;
+      var MOTION_CURRENT = 2;
+
+      //console.log("Page loading");
+      var maybeMotionTimer = window.setTimeout(maybeMotionTimeout, 0);
+      var noMotionTimer = window.setTimeout(noMotionTimeout, 0);
+      clearTimers();
+
+      function maybeMotionTimeout() {
+        //console.log("Maybe motion timer timed out");
+        displayMotion(MOTION_RECENT);
+        clearTimers();
+        console.log("Starting timer for no motion");
+        noMotionTimer = window.setInterval(noMotionTimeout, 180000);
+      }
+
+      function noMotionTimeout() {
+        //console.log("No motion timer timed out");
+        displayMotion(MOTION_NONE);
+        clearTimers();
+      }
+
+      function clearTimers() {
+        //console.log("Timers being cleared");
+        window.clearInterval(maybeMotionTimer);
+        window.clearInterval(noMotionTimer);
+      }
+
+      function displayMotion(motionState) {
+        var displayImg = document.getElementById("displayImage");
+
+        switch (motionState) {
+          case MOTION_ERROR:
+            displayImg.src = "https://9cubehosting.com/template2/img/access-error-logs.png";
+            displayImg.title = "Something went wrong.";
+            break;
+          case MOTION_NONE:
+            displayImg.src = "./images/OnAirOff.jpg";
+            displayImg.title = "Music room appears to be free! Go jam!";
+            break;
+          case MOTION_RECENT:
+            displayImg.src = "./images/OnAirMaybe.jpg";
+            displayImg.title = "Someone was moving around in there recently (last five minutes) but it LOOKS like it's now free.";
+            break;
+          case MOTION_CURRENT:
+            displayImg.src = "./images/OnAirOn.jpg";
+            displayImg.title = "There are people jamming in the music room!";
+            break;
+        }
+      }
+
+      var occupied = firebase.database().ref('latest_motion');
+      occupied.on("value", function(data){
+        var t = JSON.parse(data.val()).ts;
+
+        //console.log("Got motion from the sensor");
+
+        clearTimers();
+
+        var current_time = Date.now() / 1000;
+        var delta_t = current_time - t;
+
+          // Currently I'm using more than 3 minutes means no motion, and anything under a minute still counts as
+          // full and current motion
+        if (delta_t < 0) {
+          displayMotion(MOTION_ERROR);
+        }
+        else if (delta_t > 180) {
+          displayMotion(MOTION_NONE);
+        }
+        else if (delta_t > 60) {
+          displayMotion(MOTION_RECENT);
+          //console.log("Starting timer for no motion");
+          noMotionTimer = window.setInterval(noMotionTimeout, 180000)
+        }
+        else {
+          displayMotion(MOTION_CURRENT);
+          //console.log("Starting timer for maybe motion");
+          maybeMotionTimer = window.setInterval(maybeMotionTimeout, 60000);
+        }
+      });
+    </script>
+  </body>
+</html>
