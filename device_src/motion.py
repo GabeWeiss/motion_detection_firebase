@@ -96,6 +96,7 @@ while True:
 		time.sleep(1.0)
 		continue
 
+        previous_motion = current_motion
 	current_motion = motion
 
 	try:
@@ -107,6 +108,11 @@ while True:
 	except:
 		e = sys.exc_info()[0]
 		print ("An error occurred: {}".format(e))
+		# If we've hit an exception, we want to reset the motion so that we catch a case
+		# where a stop in motion might get missed, and we'd get stuck in a loop where
+		# we think we're still moving even though we're not, and it wouldn't get fixed
+		# until motion triggers again, which might be a long time later
+		current_motion = previous_motion
 
 	time.sleep(1.0)
 
